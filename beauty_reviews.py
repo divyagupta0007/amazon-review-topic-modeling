@@ -3,17 +3,24 @@ import spacy
 from collections import Counter
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.feature_extraction.text import TfidfVectorizer
+import pickle
 
 # Load SpaCy model
 nlp = spacy.load("en_core_web_lg")
 
+
+
+# LOAD DATA
 
 def load_data():
     df = pd.read_csv("data/beauty_reviews.csv")
     return df
 
 
-# Stream 1: POS Filtered
+# STREAM 1
+# POS FILTERED TOKENS
+
 def pos_filtered_tokens(text):
 
     doc = nlp(str(text))
@@ -26,12 +33,17 @@ def pos_filtered_tokens(text):
 
             if not token.is_stop and token.is_alpha:
 
-                tokens.append(token.lemma_.lower())
+                tokens.append(
+                    token.lemma_.lower()
+                )
 
     return tokens
 
 
-# Stream 2: Word2Vec Stream
+
+# STREAM 2
+# WORD2VEC TOKENS
+
 def lightly_cleaned_tokens(text):
 
     doc = nlp(str(text))
@@ -42,12 +54,16 @@ def lightly_cleaned_tokens(text):
 
         if not token.is_stop and token.is_alpha:
 
-            tokens.append(token.lemma_.lower())
+            tokens.append(
+                token.lemma_.lower()
+            )
 
     return tokens
 
 
-# NER Function
+
+# NER FUNCTION
+
 def extract_entities(text):
 
     doc = nlp(str(text))
@@ -60,64 +76,96 @@ def extract_entities(text):
     return entities
 
 
+
+# MAIN
+
 if __name__ == "__main__":
 
-    # Load Data
+    # Load Dataset
     df = load_data()
 
-    # POS Stream
-    print("Creating POS stream...")
+    print("Dataset Loaded Successfully")
+    print("Shape:", df.shape)
+
+   
+    # POS STREAM
+   
+    print("\nCreating POS stream...")
 
     df["pos_tokens"] = df["review_text"].apply(
         pos_filtered_tokens
     )
 
-    # Word2Vec Stream
-    print("Creating Word2Vec stream...")
+   
+    # WORD2VEC STREAM
+
+    print("\nCreating Word2Vec stream...")
 
     df["w2v_tokens"] = df["review_text"].apply(
         lightly_cleaned_tokens
     )
 
-    # NER
-    print("Extracting entities...")
+  
+    # NER 
+   
+    print("\nExtracting entities...")
 
     df["entities"] = df["review_text"].apply(
         extract_entities
     )
 
-    print("\nSample Entities:")
-    print(df[["entities"]].head())
+    print("\nSample Entities:\n")
 
-    # Collect all entities
+    print(
+        df[
+            ["entities"]
+        ].head()
+    )
+
+  
+    # TOP 20 ENTITIES
+  
     all_entities = []
 
     for entity_list in df["entities"]:
-        all_entities.extend(entity_list)
+        all_entities.extend(
+            entity_list
+        )
 
-    # Count frequencies
-    entity_counter = Counter(all_entities)
+    entity_counter = Counter(
+        all_entities
+    )
 
-    # Top 20 entities
-    top20 = entity_counter.most_common(20)
+    top20 = entity_counter.most_common(
+        20
+    )
 
     print("\nTop 20 Entities:\n")
 
     for entity, count in top20:
-        print(f"{entity}: {count}")
 
-    # Create Bar Chart
+        print(
+            f"{entity}: {count}"
+        )
+
+
+    # ENTITY BAR CHART
+   
     names = [x[0] for x in top20]
     counts = [x[1] for x in top20]
 
-    plt.figure(figsize=(12, 6))
+    plt.figure(
+        figsize=(12, 6)
+    )
 
     sns.barplot(
         x=counts,
         y=names
     )
 
-    plt.title("Top 20 Mentioned Entities")
+    plt.title(
+        "Top 20 Mentioned Entities"
+    )
 
     plt.tight_layout()
 
@@ -127,15 +175,96 @@ if __name__ == "__main__":
 
     plt.show()
 
-    # Show sample processed data
-    print("\nProcessed Data Sample:\n")
+    print(
+        "\nEntity chart saved successfully!"
+    )
+
+ 
+    # TF-IDF CORPUS
+   
+    print(
+        "\nCreating TF-IDF Corpus..."
+    )
+
+    df["pos_text"] = df[
+        "pos_tokens"
+    ].apply(
+        lambda x: " ".join(x)
+    )
+
+    print(
+        "\nSample POS Text:\n"
+    )
+
+    print(
+        df["pos_text"].head()
+    )
+
+    # TF-IDF MATRIX
+
+    print(
+        "\nGenerating TF-IDF Matrix..."
+    )
+
+    vectorizer = TfidfVectorizer()
+
+    X_tfidf = vectorizer.fit_transform(
+        df["pos_text"]
+    )
+
+    print(
+        "\nTF-IDF Matrix Shape:"
+    )
+
+    print(
+        X_tfidf.shape
+    )
+
+    
+    # FEATURE NAMES
+   
+    feature_names = (
+        vectorizer.get_feature_names_out()
+    )
+
+    print(
+        "\nFirst 20 TF-IDF Features:\n"
+    )
+
+    print(
+        feature_names[:20]
+    )
+
+    # SAVE TF-IDF VECTORIZER
+   
+    with open(
+        "outputs/tfidf_vectorizer.pkl",
+        "wb"
+    ) as f:
+
+        pickle.dump(
+            vectorizer,
+            f
+        )
+
+    print(
+        "\nTF-IDF Vectorizer Saved Successfully!"
+    )
+
+    
+    # SAMPLE PROCESSED DATA
+   
+    print(
+        "\nProcessed Data Sample:\n"
+    )
 
     print(
         df[
             [
                 "review_text",
                 "pos_tokens",
-                "w2v_tokens"
+                "w2v_tokens",
+                "pos_text"
             ]
         ].head()
     )
