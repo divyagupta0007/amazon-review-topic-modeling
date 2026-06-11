@@ -7,6 +7,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import pickle
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+from gensim.models import Word2Vec
+from sklearn.decomposition import PCA
 
 # Load SpaCy model
 nlp = spacy.load("en_core_web_lg")
@@ -77,6 +79,28 @@ def extract_entities(text):
 
     return entities
 
+def document_vector(tokens, model):
+
+    vectors = []
+
+    for word in tokens:
+
+        if word in model.wv:
+
+            vectors.append(
+                model.wv[word]
+            )
+
+    if len(vectors) == 0:
+
+        return np.zeros(
+            model.vector_size
+        )
+
+    return np.mean(
+        vectors,
+        axis=0
+    )
 
 
 # MAIN
@@ -333,10 +357,130 @@ if __name__ == "__main__":
     print(
         "Similarity Matrix CSV Saved!"
     )
+ 
+    # PHASE 6: WORD2VEC + PCA
+    
 
-    # ==================================
+    print("\nTraining Word2Vec Model...")
+
+    w2v_model = Word2Vec(
+        sentences=df["w2v_tokens"],
+        vector_size=100,
+        window=5,
+        min_count=2,
+        workers=4,
+        epochs=10
+    )
+
+    print("Word2Vec Training Complete!")
+
+    # Save Model
+
+    w2v_model.save(
+        "outputs/word2vec.model"
+    )
+
+    print("Word2Vec Model Saved!")
+
+     
+    # DOCUMENT EMBEDDINGS
+    
+
+    print(
+        "\nCreating Document Embeddings..."
+    )
+
+    doc_vectors = np.array(
+        [
+            document_vector(
+                tokens,
+                w2v_model
+            )
+            for tokens in df["w2v_tokens"]
+        ]
+    )
+
+    print(
+        "Embedding Shape:",
+        doc_vectors.shape
+    )
+
+    
+    # PCA REDUCTION
+     
+
+    print(
+        "\nApplying PCA..."
+    )
+
+    pca = PCA(
+        n_components=2,
+        random_state=42
+    )
+
+    pca_vectors = pca.fit_transform(
+        doc_vectors
+    )
+
+   
+    # PCA DATAFRAME
+   
+
+    pca_df = pd.DataFrame(
+        {
+            "PC1": pca_vectors[:, 0],
+            "PC2": pca_vectors[:, 1],
+            "sentiment": df["sentiment"]
+        }
+    )
+ 
+    # PCA SCATTER PLOT
+     
+
+    plt.figure(
+        figsize=(10, 8)
+    )
+
+    sns.scatterplot(
+        data=pca_df,
+        x="PC1",
+        y="PC2",
+        hue="sentiment",
+        alpha=0.6
+    )
+
+    plt.title(
+        "Word2Vec PCA Visualization"
+    )
+
+    plt.tight_layout()
+
+    plt.savefig(
+        "outputs/word2vec_pca.png"
+    )
+
+    plt.show()
+
+    print(
+        "Word2Vec PCA Plot Saved!"
+    )
+
+   
+    # SAVE PCA DATA
+    
+
+    pca_df.to_csv(
+        "outputs/word2vec_pca.csv",
+        index=False
+    )
+
+    print(
+        "Word2Vec PCA Data Saved!"
+    )
+
+    
     # SAMPLE PROCESSED DATA
-    # ==================================
+    
 
     print(
         "\nProcessed Data Sample:\n"
