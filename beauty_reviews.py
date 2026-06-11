@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.feature_extraction.text import TfidfVectorizer
 import pickle
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 # Load SpaCy model
 nlp = spacy.load("en_core_web_lg")
@@ -250,6 +252,107 @@ if __name__ == "__main__":
     print(
         "\nTF-IDF Vectorizer Saved Successfully!"
     )
+
+      
+    # PHASE 5: COSINE SIMILARITY HEATMAP
+   
+
+    print("\nStarting Cosine Similarity Analysis...")
+
+    # Select 50 random reviews
+    sample_df = df.sample(
+        n=50,
+        random_state=42
+    )
+
+    sample_indices = sample_df.index
+
+    # Get TF-IDF vectors of sampled reviews
+    sample_tfidf = X_tfidf[
+        sample_indices
+    ]
+
+    # Compute cosine similarity matrix
+    similarity_matrix = cosine_similarity(
+        sample_tfidf
+    )
+
+    print("\nSimilarity Matrix Shape:")
+    print(similarity_matrix.shape)
+
+    # Create labels with sentiment
+    labels = []
+
+    for i, sentiment in enumerate(
+            sample_df["sentiment"]):
+
+        if sentiment == 1:
+            labels.append(f"P{i}")
+        else:
+            labels.append(f"N{i}")
+
+    # Plot Heatmap
+    plt.figure(figsize=(14, 12))
+
+    sns.heatmap(
+        similarity_matrix,
+        xticklabels=labels,
+        yticklabels=labels,
+        cmap="viridis"
+    )
+
+    plt.title(
+        "Cosine Similarity Heatmap (50 Random Reviews)"
+    )
+
+    plt.xlabel("Reviews")
+    plt.ylabel("Reviews")
+
+    plt.tight_layout()
+
+    plt.savefig(
+        "outputs/cosine_similarity_heatmap.png"
+    )
+
+    plt.show()
+
+    print(
+        "\nCosine Similarity Heatmap Saved!"
+    )
+
+    # Save similarity matrix
+    similarity_df = pd.DataFrame(
+        similarity_matrix
+    )
+
+    similarity_df.to_csv(
+        "outputs/cosine_similarity_matrix.csv",
+        index=False
+    )
+
+    print(
+        "Similarity Matrix CSV Saved!"
+    )
+
+    # ==================================
+    # SAMPLE PROCESSED DATA
+    # ==================================
+
+    print(
+        "\nProcessed Data Sample:\n"
+    )
+
+    print(
+        df[
+            [
+                "review_text",
+                "pos_tokens",
+                "w2v_tokens",
+                "pos_text"
+            ]
+        ].head()
+    )
+
 
     
     # SAMPLE PROCESSED DATA
