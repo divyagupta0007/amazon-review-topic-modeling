@@ -9,6 +9,24 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from gensim.models import Word2Vec
 from sklearn.decomposition import PCA
+from sklearn.decomposition import TruncatedSVD
+from gensim import corpora
+from gensim.models import LdaModel
+from gensim.models.coherencemodel import CoherenceModel
+from wordcloud import WordCloud
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import BernoulliNB
+from sklearn.linear_model import LogisticRegression
+
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_curve,
+    auc
+)
 
 # Load SpaCy model
 nlp = spacy.load("en_core_web_lg")
@@ -101,6 +119,55 @@ def document_vector(tokens, model):
         vectors,
         axis=0
     )
+   #Phase 7.1: Topic Word Clouds
+     
+def create_topic_wordclouds(lda_model):
+    num_topics = lda_model.num_topics
+
+    plt.figure(figsize=(15, 10))
+
+    for topic_id in range(num_topics):
+
+        plt.subplot(
+            (num_topics + 1) // 2,
+            2,
+            topic_id + 1
+        )
+
+        words = dict(
+            lda_model.show_topic(
+                topic_id,
+                topn=20
+            )
+        )
+
+        wc = WordCloud(
+            width=400,
+            height=300,
+            background_color="white"
+        )
+
+        wc.generate_from_frequencies(
+            words
+        )
+
+        plt.imshow(wc)
+
+        plt.axis("off")
+
+        plt.title(
+            f"Topic {topic_id}"
+        )
+
+    plt.tight_layout()
+
+    plt.savefig(
+        "outputs/topic_wordclouds.png"
+    )
+
+    plt.show()
+   
+    
 
 
 # MAIN
@@ -276,6 +343,69 @@ if __name__ == "__main__":
     print(
         "\nTF-IDF Vectorizer Saved Successfully!"
     )
+
+   
+    # TF-IDF PCA VISUALIZATION
+
+
+    print("\nReducing TF-IDF Dimensions...")
+
+    svd = TruncatedSVD(
+        n_components=50,
+        random_state=42
+        )
+
+    tfidf_reduced = svd.fit_transform(
+        X_tfidf
+        )
+
+    print(
+        "Reduced Shape:",
+        tfidf_reduced.shape
+        )
+
+    # PCA to 2D
+
+    pca_tfidf = PCA(
+        n_components=2,
+        random_state=42
+)
+
+    tfidf_pca = pca_tfidf.fit_transform(
+        tfidf_reduced
+        )
+
+    tfidf_plot_df = pd.DataFrame(
+        {
+            "PC1": tfidf_pca[:, 0],
+            "PC2": tfidf_pca[:, 1],
+            "sentiment": df["sentiment"]
+            }
+            )
+
+    plt.figure(figsize=(10,8))
+
+    sns.scatterplot(
+        data=tfidf_plot_df,
+        x="PC1",
+        y="PC2",
+        hue="sentiment",
+        alpha=0.6
+        )
+    plt.title(
+        "TF-IDF PCA Visualization"
+        )
+
+    plt.tight_layout()
+
+    plt.savefig(
+        "outputs/tfidf_pca.png"
+        )
+
+    plt.show()
+    print(
+        "TF-IDF PCA Plot Saved!"
+        )
 
       
     # PHASE 5: COSINE SIMILARITY HEATMAP
@@ -477,27 +607,352 @@ if __name__ == "__main__":
     print(
         "Word2Vec PCA Data Saved!"
     )
+   
+    # PHASE 7: LDA TOPIC MODELING
 
-    
-    # SAMPLE PROCESSED DATA
-    
 
-    print(
-        "\nProcessed Data Sample:\n"
+        # ==================================
+    # PHASE 7: LDA TOPIC MODELING
+    # ==================================
+
+    print("\nCreating Dictionary...")
+
+    dictionary = corpora.Dictionary(
+        df["pos_tokens"]
     )
 
     print(
-        df[
-            [
-                "review_text",
-                "pos_tokens",
-                "w2v_tokens",
-                "pos_text"
+        "Vocabulary Size:",
+        len(dictionary)
+    )
+
+    print(
+        "\nCreating Bag-of-Words Corpus..."
+    )
+
+    corpus = [
+        dictionary.doc2bow(doc)
+        for doc in df["pos_tokens"]
+    ]
+
+    print(
+        "Corpus Size:",
+        len(corpus)
+    )
+
+    # Topic counts to test
+    topic_numbers = [5, 7, 10]
+
+    lda_models = {}
+
+    coherence_scores = {}
+
+    # Train LDA Models
+
+    for k in topic_numbers:
+
+        print(
+            f"\nTraining LDA with {k} topics..."
+        )
+
+        lda = LdaModel(
+            corpus=corpus,
+            id2word=dictionary,
+            num_topics=k,
+            random_state=42,
+            passes=10
+        )
+
+        lda_models[k] = lda
+
+        coherence_model = CoherenceModel(
+            model=lda,
+            texts=df["pos_tokens"],
+            dictionary=dictionary,
+            coherence="c_v"
+        )
+
+        score = coherence_model.get_coherence()
+
+        coherence_scores[k] = score
+
+        print(
+            f"Coherence Score = {score:.4f}"
+        )
+
+    # Select Best Model
+
+    best_k = max(
+        coherence_scores,
+        key=coherence_scores.get
+    )
+
+    best_lda = lda_models[
+        best_k
+    ]
+
+    print(
+        f"\nBest Model: {best_k} Topics"
+    )
+
+    # Print Topics
+
+    print(
+        "\nBest Topics:\n"
+    )
+
+    topics = best_lda.print_topics(
+        num_words=10
+    )
+
+    for topic in topics:
+        print(topic)
+
+    # Save Topics
+
+    with open(
+        "outputs/topics.txt",
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        for topic in topics:
+
+            f.write(
+                str(topic) + "\n"
+            )
+    
+    #WORD CLOUDS FOR TOPICS
+
+    print("\nGenerating Topic Word Clouds...")
+    create_topic_wordclouds(
+        best_lda
+        )
+    
+    print(
+        "\nAssigning Dominant Topics..."
+        )
+
+    print("\nAssigning Dominant Topics...")
+
+    dominant_topics = []
+
+    for doc in corpus:
+        topic_probs = best_lda.get_document_topics(
+            doc
+            )
+
+    dominant_topic = max(
+        topic_probs,
+        key=lambda x: x[1]
+        )[0]
+
+    dominant_topics.append(
+        dominant_topic
+        )
+
+    print(
+        "Number of Topics Assigned:",
+        len(dominant_topics)
+        )
+
+    df["dominant_topic"] = dominant_topics
+
+    #7.3: 
+    topic_sentiment = pd.crosstab(
+    df["dominant_topic"],
+    df["sentiment"],
+    normalize="index"
+    )
+
+    topic_sentiment.columns = [
+        "Negative",
+        "Positive"
+        ]
+
+    print(
+        "\nTopic Sentiment Distribution:\n"
+        )
+
+    print(
+        topic_sentiment
+        )
+
+    topic_sentiment.to_csv(
+        "outputs/topic_sentiment_table.csv"
+        )
+    
+# PHASE 8: SENTIMENT CLASSIFICATION
+    print("\nCreating Train-Test Split...")
+
+    X = X_tfidf
+
+    y = df["sentiment"]
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.20,
+        random_state=42,
+        stratify=y
+        )
+
+    print("Train Shape:", X_train.shape)
+    print("Test Shape:", X_test.shape)
+
+     # ==================================
+# PHASE 8: SENTIMENT CLASSIFICATION
+# ==================================
+
+# Step 2
+print("\nCreating Train-Test Split...")
+
+X = X_tfidf
+y = df["sentiment"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.20,
+    random_state=42,
+    stratify=y
+)
+
+# Step 3
+models = {
+    "MultinomialNB": MultinomialNB(),
+    "BernoulliNB": BernoulliNB(),
+    "Logistic Regression": LogisticRegression(
+        max_iter=1000,
+        random_state=42
+    )
+}
+
+# STEP 4 STARTS HERE
+results = []
+
+plt.figure(figsize=(10,8))
+
+for name, model in models.items():
+
+    print(f"\nTraining {name}...")
+
+    model.fit(
+        X_train,
+        y_train
+    )
+
+    predictions = model.predict(
+        X_test
+    )
+
+    probabilities = model.predict_proba(
+        X_test
+    )[:,1]
+
+    accuracy = accuracy_score(
+        y_test,
+        predictions
+    )
+
+    precision = precision_score(
+        y_test,
+        predictions
+    )
+
+    recall = recall_score(
+        y_test,
+        predictions
+    )
+
+    f1 = f1_score(
+        y_test,
+        predictions
+    )
+
+    fpr, tpr, _ = roc_curve(
+        y_test,
+        probabilities
+    )
+
+    roc_auc = auc(
+        fpr,
+        tpr
+    )
+
+    results.append(
+        [
+            name,
+            accuracy,
+            precision,
+            recall,
+            f1,
+            roc_auc
+        ]
+    )
+
+    plt.plot(
+        fpr,
+        tpr,
+        label=f"{name} (AUC={roc_auc:.3f})"
+    )
+
+    print(
+        f"Accuracy={accuracy:.4f}"
+    ) 
+
+    #ROC
+    plt.plot(
+        [0,1],
+        [0,1],
+        linestyle="--"
+        )
+
+    plt.xlabel(
+        "False Positive Rate"
+        )
+
+    plt.ylabel(
+        "True Positive Rate"
+        )
+
+    plt.title(
+        "ROC Curve Comparison"
+        )
+
+    plt.legend()
+
+    plt.tight_layout()
+
+    plt.savefig(
+        "outputs/roc_curve_comparison.png"
+        )
+
+    plt.show()
+
+#Comparison Table
+    results_df = pd.DataFrame(
+        results,
+        columns=[
+            "Model",
+            "Accuracy",
+            "Precision",
+            "Recall",
+            "F1 Score",
+            "AUC"
             ]
-        ].head()
-    )
+            )
 
+    print(
+        "\nClassifier Comparison:\n"
+        )
+    print(
+        results_df
+        )
 
+    results_df.to_csv(
+        "outputs/classifier_comparison.csv",
+        index=False
+        )
     
     # SAMPLE PROCESSED DATA
    

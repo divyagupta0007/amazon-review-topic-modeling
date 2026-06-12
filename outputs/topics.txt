@@ -1,0 +1,5 @@
+(0, '0.130*"hair" + 0.024*"nail" + 0.014*"good" + 0.014*"wig" + 0.013*"time" + 0.012*"thin" + 0.011*"easy" + 0.010*"thick" + 0.009*"product" + 0.009*"head"')
+(1, '0.044*"skin" + 0.027*"product" + 0.021*"face" + 0.018*"good" + 0.017*"lash" + 0.016*"eye" + 0.014*"day" + 0.014*"scent" + 0.013*"oil" + 0.013*"time"')
+(2, '0.017*"cheap" + 0.016*"small" + 0.016*"size" + 0.013*"product" + 0.013*"year" + 0.010*"old" + 0.010*"time" + 0.009*"perfect" + 0.009*"good" + 0.009*"bottle"')
+(3, '0.057*"great" + 0.050*"color" + 0.042*"product" + 0.033*"good" + 0.014*"quality" + 0.013*"price" + 0.010*"light" + 0.010*"bottle" + 0.009*"easy" + 0.008*"lotion"')
+(4, '0.043*"brush" + 0.034*"product" + 0.023*"money" + 0.016*"little" + 0.015*"item" + 0.015*"great" + 0.012*"good" + 0.012*"time" + 0.011*"nice" + 0.010*"box"')
